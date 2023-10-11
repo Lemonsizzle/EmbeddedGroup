@@ -1,6 +1,7 @@
 from sense_emu import SenseHat
 import RPi.GPIO as GPIO
 import time
+from ass2_db import db
 
 # Initialize the Sense HAT
 sense = SenseHat()
@@ -12,7 +13,10 @@ GPIO.setup(servo_pin, GPIO.OUT)
 pwm = GPIO.PWM(servo_pin, 50)  # 50 Hz frequency
 pwm.start(0)  # Initial duty cycle of 0%
 
-class gimbal:
+db = db()
+
+offset = 0
+rotate_delta = 5
 
 
 def set_servo_angle(angle):
@@ -21,30 +25,45 @@ def set_servo_angle(angle):
 
 try:
     while True:
+
+        timestamp = datetime.now()
+
+        temperature = sense.get_temperature()
+        humidity = sense.get_humidity()
+
+        orientation = sense.get_orientation()
+
+        roll = orientation['roll']
+        pitch = orientation['pitch']
+        yaw = orientation['yaw']
+
+
         # Read pitch from Sense HAT
         orientation = sense.get_orientation()
         
         for key in orientation:
             print(key, orientation[key])
 
-        print()
-
-
         pitch = orientation['pitch']
+
+        for event in sense.stick.get_events():
+            if event.action == "pressed":
+                if event.direction == "middle":
+                    # Stick pressed, set servo to 0 deg
+                    offset = pitch + offset
+                elif event.direction == "left":
+                    offset -= rotate_delta
+                elif event.direction == "right":
+                    offset += rotate_delta
+     
 
         # Code for clamping pitch
 
-        # Code for creating a new home orientation
-
         # Map pitch to servo angle (Assuming 0-180 degrees)
-        servo_angle = pitch  # Modify this as needed
-
-        # print(servo_angle)
+        servo_angle = pitch + offset
 
         # Update servo position
         set_servo_angle(servo_angle)
-
-        time.sleep(0.1)
 
 except KeyboardInterrupt:
     pwm.stop()
